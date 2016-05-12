@@ -12,11 +12,23 @@ module Baleen
     def run
       results = []
       prepare_task
-      create_runners.each do |runners|
-        runners.map{|runner| runner.future.run}.each do |actor|
-          results << actor.value
-        end
+      pool = Runner.pool(size: @task.concurrency, args: [@connection])
+
+      @task.target_files.map { |file|
+        file.sub!("rails/", "")
+        task = @task.dup
+        task.files = file
+
+        pool.future.run(task)
+      }.each do |actor|
+        results << actor.value
       end
+
+      # create_runners.each do |runner|
+      #   runners.map{|runner| runner.future.run}.each do |actor|
+      #     results << actor.value
+      #   end
+      # end
       @task.results = results
       yield @task
     end
@@ -27,13 +39,14 @@ module Baleen
       @task.prepare
     end
 
-    def create_runners
-      @task.target_files.map {|file|
-        task = @task.dup
-        task.files = file
-        Runner.new(task, @connection)
-      }.each_slice(@task.concurrency).map {|r| r}
-    end
+    # def create_runners
+    #   @task.target_files.map {|file|
+    #     file.sub!("rails/", "")
+    #     task = @task.dup
+    #     task.files = file
+    #     Runner.new(task, @connection)
+    #   }.each_slice(@task.concurrency).map {|r| r}
+    # end
 
   end
 
@@ -43,43 +56,79 @@ module Baleen
 
     def_delegator :@connection, :notify_info
 
-    def initialize(task, connection=nil)
-      @container  = Docker::Container.create('Cmd' => ["bash", "-c", task.commands], 'Image' => task.image)
+    def initialize(connection=nil)
       @connection = connection ? connection : Connection.new
+    end
+
+    def create_container(task)
+      if task.files
+        container_name = task.files.gsub('/', '_').split('.').first
+      end
+
+      @container  = Docker::Container.create(
+          'name' => container_name || nil,
+          'Cmd' => ["bash", "-c", task.commands],
+          'Image' => task.image,
+          'HostConfig' => {
+              'Binds' => task.volumes
+          })
+
       @task = task
     end
 
-    def run
-      max_retry = 3; count = 0
+    def run(task)
+      max_retry = 10; count = 0
+
+      create_container(task)
 
       begin
-        notify_info("Start container #{@container.id}")
+        notify_info("Start feature #{@task.files} in container #{@container.id}")
         @container.start
-        @container.wait(600) #TODO move to configuration
-        notify_info("Finish container #{@container.id}")
+        @container.wait(1200) #TODO move to configuration
+        notify_info("Finish feature #{@task.files} in container #{@container.id}")
 
         if @task.commit
           notify_info("Committing the change of container #{@container.id}")
           @container.commit({repo: @task.image}) if @task.commit
         end
-      rescue Excon::Errors::NotFound => e
+      rescue Excon::Errors::NotFound
         count += 1
         if count > max_retry
           raise Baleen::Error::StartContainerFail
         else
+          sleep 1
           retry
         end
+      rescue Docker::Error::TimeoutError
+        notify_info("Kill feature #{@task.files} in container #{@container.id}")
+        build_failed = {
+          status_code: "1",
+          container_id: @container.id,
+          stdout: [""],
+          stderr: ["Build took too much time."],
+          file: @task.files,
+        }
+        container = @container.kill!
+        container.remove
+
+        return build_failed
       end
 
       stdout, stderr = *@container.attach(:stream => false, :stdout => true, :stderr => true, :logs => true)
 
-      return {
+      stdout = stdout.map{|e| e.force_encoding(Encoding::UTF_8)}
+      stderr = stderr.map{|e| e.force_encoding(Encoding::UTF_8)}
+
+      result = {
         status_code: @container.json["State"]["ExitCode"],
         container_id: @container.id,
         stdout: stdout,
         stderr: stderr,
         file: @task.files,
       }
+
+      @container.remove
+      result
     end
 
   end

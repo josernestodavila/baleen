@@ -7,6 +7,7 @@ module Baleen
         @params = {}
         @params[:klass]          = self.class.to_s
         @params[:work_dir]       = nil
+        @params[:run_dir]        = nil
         @params[:files]          = nil
         @params[:bin]            = nil
         @params[:options]        = nil
@@ -17,12 +18,13 @@ module Baleen
         @params[:results]        = nil
         @params[:status]         = nil
         @params[:commit]         = nil
+        @params[:volumes]        = nil
       end
 
       def commands
         %{
         #{@params[:before_command]}
-            cd #{@params[:work_dir]}
+            cd #{@params[:run_dir]}
         #{command}
         }
       end

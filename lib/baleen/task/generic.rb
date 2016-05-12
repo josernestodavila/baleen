@@ -7,8 +7,10 @@ module Baleen
       def initialize(opt)
         super()
         @params[:work_dir]       = opt[:work_dir]    ||="./"
+        @params[:run_dir]        = opt[:run_dir]     ||=@params[:work_dir]
         @params[:image]          = opt[:image]
         @params[:command]        = opt[:command]
+        @params[:volumes]        = opt[:volumes]     ||=[]
       end
     end
   end

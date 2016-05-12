@@ -77,7 +77,9 @@ module Baleen
           cfg[:runner][:before_command] ||= default_before_command
           cfg[:runner][:concurrency]    ||= default_concurrency
           cfg[:runner][:work_dir]       ||= default_work_dir
+          cfg[:runner][:run_dir]        ||= cfg[:runner][:work_dir]
           cfg[:runner][:image]
+          cfg[:runner][:volumes]        ||= []
 
           case cfg[:framework][:type]
             when "cucumber"
@@ -113,10 +115,12 @@ module Baleen
         Baleen::Task::Cucumber.new(
           image: @config[:runner][:image],
           work_dir: @config[:runner][:work_dir],
+          run_dir: @config[:runner][:run_dir],
           options: @config[:framework][:options],
           files: @config[:framework][:files],
           before_command: @config[:runner][:before_command],
           concurrency: @config[:runner][:concurrency].to_i,
+          volumes: @config[:runner][:volumes]
         )
       end
   end

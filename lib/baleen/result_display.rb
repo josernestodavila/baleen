@@ -11,8 +11,8 @@ module Baleen
 
     def report_result
       if @result
-        summary
         detail
+        summary
       end
     end
 

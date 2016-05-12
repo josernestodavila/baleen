@@ -9,9 +9,11 @@ module BaleenCliHelper
     task = Baleen::Task.const_get(klass).new(
       image: project[:runner][:image],
       work_dir: project[:runner][:work_dir],
+      run_dir: project[:runner][:run_dir],
       files: project[:framework][:files],
       before_command: project[:runner][:before_command],
       concurrency: project[:runner][:concurrency].to_i,
+      volumes: project[:runner][:volumes],
     )
     client  = Baleen::Client.new(project[:base][:baleen_server], project[:base][:port])
     job     = Baleen::Job.new(client, task)
@@ -58,9 +60,11 @@ module BaleenCLI
     option :before_command
     option :concurrency
     option :work_dir
+    option :run_dir
     option :features
     option :image, :required => true
     option :debug, :type => :boolean
+    option :volumes
 
     desc "cucumber", "Running cucumber project from options"
     def start
@@ -73,7 +77,9 @@ module BaleenCLI
          before_command: options[:before_command] || default_before_command,
          concurrency: options[:concurrency]       || default_concurrency,
          work_dir: options[:work_dir]             || default_work_dir,
+         run_dir: options[:run_dir]               || options[:work_dir] || default_work_dir,
          image: options[:image],
+         volumes: options[:volumes].split()       || []
        },
        framework: {
          files: options[:features] || default_features,

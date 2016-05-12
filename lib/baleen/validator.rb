@@ -66,8 +66,10 @@ module Baleen
       def optional_attributes
         [
           :work_dir,
+          :run_dir,
           :concurrency,
           :before_command,
+          :volumes,
         ]
       end
 
