@@ -30,7 +30,7 @@ module Baleen
         task = Generic.new(
           work_dir: work_dir,
           image:    image,
-          command:  %{find #{files} | grep "\\.feature"},
+          command:  %{find #{files} | grep "\\.feature" | xargs du -h | sort -rn | awk '{print $2}'},
           volumes:  volumes
         )
         runner = Baleen::Runner.new

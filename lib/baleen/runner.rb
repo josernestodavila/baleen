@@ -24,11 +24,6 @@ module Baleen
         results << actor.value
       end
 
-      # create_runners.each do |runner|
-      #   runners.map{|runner| runner.future.run}.each do |actor|
-      #     results << actor.value
-      #   end
-      # end
       @task.results = results
       yield @task
     end
@@ -38,16 +33,6 @@ module Baleen
     def prepare_task
       @task.prepare
     end
-
-    # def create_runners
-    #   @task.target_files.map {|file|
-    #     file.sub!("rails/", "")
-    #     task = @task.dup
-    #     task.files = file
-    #     Runner.new(task, @connection)
-    #   }.each_slice(@task.concurrency).map {|r| r}
-    # end
-
   end
 
   class Runner
